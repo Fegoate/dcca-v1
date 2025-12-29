@@ -6,17 +6,20 @@ import java.util.stream.Collectors;
 
 public class VisualizationPanel extends JPanel implements ActionListener {
     private JTextField frequencyField;
-    private JTextField incidentDirectionField;
-    private JTextField elevationField;
-    private JTextField azimuthField;
+    private JTextField incidentElevationField;
+    private JTextField incidentAzimuthField;
+    private JTextField observationElevationField;
+    private JTextField observationAzimuthField;
     private JButton calculateButton;
     private JLabel resultLabel;
     private List<RCSData> rcsDataList;
     private InterpolationEngine interpolationEngine;
+    private JPanel drawingPanel;
     private double currentFrequency = 10.0;
-    private double currentIncidentDirection = 0.0;
-    private double currentElevation = 0.0;
-    private double currentAzimuth = 0.0;
+    private double currentIncidentElevation = 0.0;
+    private double currentIncidentAzimuth = 0.0;
+    private double currentObservationElevation = 0.0;
+    private double currentObservationAzimuth = 0.0;
     private double currentRCS = 0.0;
     private boolean hasCalculated = false;
 
@@ -46,34 +49,44 @@ public class VisualizationPanel extends JPanel implements ActionListener {
         frequencyField = new JTextField("10.0", 10);
         controlPanel.add(frequencyField, gbc);
 
-        // 设置入射方向输入
+        // 设置入射俯仰角输入
         gbc.gridx = 2;
         gbc.anchor = GridBagConstraints.EAST;
-        controlPanel.add(new JLabel("入射方向 (度):"), gbc);
+        controlPanel.add(new JLabel("入射俯仰角 (度):"), gbc);
         gbc.gridx = 3;
         gbc.anchor = GridBagConstraints.WEST;
-        incidentDirectionField = new JTextField("0.0", 10);
-        controlPanel.add(incidentDirectionField, gbc);
+        incidentElevationField = new JTextField("0.0", 10);
+        controlPanel.add(incidentElevationField, gbc);
 
-        // 设置俯仰角输入
+        // 设置入射方位角输入
         gbc.gridx = 0;
         gbc.gridy = 1;
         gbc.anchor = GridBagConstraints.EAST;
-        controlPanel.add(new JLabel("俯仰角 (度):"), gbc);
+        controlPanel.add(new JLabel("入射方位角 (度):"), gbc);
         gbc.gridx = 1;
         gbc.anchor = GridBagConstraints.WEST;
-        elevationField = new JTextField("0.0", 10);
-        controlPanel.add(elevationField, gbc);
+        incidentAzimuthField = new JTextField("0.0", 10);
+        controlPanel.add(incidentAzimuthField, gbc);
 
-        // 设置方位角输入
+        // 设置观测俯仰角输入
         gbc.gridx = 2;
         gbc.gridy = 1;
         gbc.anchor = GridBagConstraints.EAST;
-        controlPanel.add(new JLabel("方位角 (度):"), gbc);
+        controlPanel.add(new JLabel("观测俯仰角 (度):"), gbc);
         gbc.gridx = 3;
         gbc.anchor = GridBagConstraints.WEST;
-        azimuthField = new JTextField("0.0", 10);
-        controlPanel.add(azimuthField, gbc);
+        observationElevationField = new JTextField("0.0", 10);
+        controlPanel.add(observationElevationField, gbc);
+
+        // 设置观测方位角输入
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        gbc.anchor = GridBagConstraints.EAST;
+        controlPanel.add(new JLabel("观测方位角 (度):"), gbc);
+        gbc.gridx = 1;
+        gbc.anchor = GridBagConstraints.WEST;
+        observationAzimuthField = new JTextField("0.0", 10);
+        controlPanel.add(observationAzimuthField, gbc);
 
         // 设置计算按钮
         gbc.gridx = 2;
@@ -94,193 +107,11 @@ public class VisualizationPanel extends JPanel implements ActionListener {
         controlPanel.add(resultLabel, gbc);
 
         add(controlPanel, BorderLayout.NORTH);
-    }
 
-    @Override
-    protected void paintComponent(Graphics g) {
-        super.paintComponent(g);
-
-        if (rcsDataList == null || rcsDataList.isEmpty()) {
-            g.drawString("没有可用的RCS数据", getWidth() / 2 - 50, getHeight() / 2);
-            return;
-        }
-
-        Graphics2D g2d = (Graphics2D) g;
-        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-        drawRCSDirectionMap(g2d);
-        drawCurrentPoint(g2d);
-    }
-
-    private void drawRCSDirectionMap(Graphics2D g2d) {
-        int centerX = getWidth() / 2;
-        int centerY = getHeight() / 2;
-        int radius = Math.min(centerX, centerY) - 50;
-
-        // 绘制极坐标网格
-        g2d.setColor(Color.LIGHT_GRAY);
-        for (int i = 1; i <= 5; i++) {
-            int r = (int) (radius * i / 5.0);
-            g2d.drawOval(centerX - r, centerY - r, r * 2, r * 2);
-        }
-
-        // 绘制角度线
-        for (int i = 0; i < 8; i++) {
-            double angle = i * Math.PI / 4.0;
-            int x = centerX + (int) (radius * Math.cos(angle));
-            int y = centerY - (int) (radius * Math.sin(angle));
-            g2d.drawLine(centerX, centerY, x, y);
-            // 绘制角度标签
-            String label = String.valueOf((int) (i * 45));
-            int labelX = centerX + (int) ((radius + 15) * Math.cos(angle));
-            int labelY = centerY - (int) ((radius + 15) * Math.sin(angle));
-            g2d.drawString(label, labelX - 5, labelY + 5);
-        }
-
-        // 为了调试，暂时移除频率和入射方向的过滤条件，显示所有数据点
-        List<RCSData> freqData = rcsDataList.stream()
-                // 暂时不过滤任何数据，显示所有点
-                .collect(Collectors.toList());
-        System.out.println("绘制的点数量: " + freqData.size());
-
-        if (freqData.isEmpty()) {
-            g2d.setColor(Color.RED);
-            g2d.drawString("当前参数下无匹配数据", centerX - 80, centerY);
-            return;
-        }
-
-        // 计算RCS值的范围
-        double minRCS = freqData.stream().mapToDouble(RCSData::getRcsValue).min().orElse(-50.0);
-        double maxRCS = freqData.stream().mapToDouble(RCSData::getRcsValue).max().orElse(-10.0);
-        double range = maxRCS - minRCS;
-
-        if (range == 0) {
-            range = 1;
-        }
-
-        // 绘制RCS方向图
-        g2d.setStroke(new BasicStroke(2));
-        for (RCSData data : freqData) {
-            double phi = Math.toRadians(data.getPhi()); // 方位角
-            double theta = Math.toRadians(data.getTheta()); // 俯仰角
-            double rcsValue = data.getRcsValue();
-            
-            // 计算归一化半径（将RCS值映射到[0, radius]）
-            double normalizedRCS = Math.max(0, Math.min(1, (rcsValue - minRCS) / range));
-            int r = (int) (radius * normalizedRCS);
-
-            // 转换极坐标到笛卡尔坐标（考虑俯仰角theta）
-            // 极径r, 方位角phi(绕y轴), 俯仰角theta(与y轴的夹角)
-            double xCartesian = r * Math.sin(theta) * Math.sin(phi);
-            double yCartesian = r * Math.cos(theta);
-            
-            // 由于我们是在2D平面上显示，需要将3D坐标投影到2D平面
-            // 这里使用简化的2D极坐标显示，主要根据方位角phi
-            int x = centerX + (int) (r * Math.sin(phi));
-            int y = centerY - (int) (r * Math.cos(phi));
-
-            // 根据RCS值设置颜色
-            Color color = getColorForRCS(rcsValue, minRCS, maxRCS);
-            g2d.setColor(color);
-            g2d.fillOval(x - 3, y - 3, 6, 6);
-        }
-
-        // 绘制图例
-        drawLegend(g2d, minRCS, maxRCS);
-    }
-
-    private void drawCurrentPoint(Graphics2D g2d) {
-        if (!hasCalculated) {
-            return;
-        }
-
-        int centerX = getWidth() / 2;
-        int centerY = getHeight() / 2;
-        int radius = Math.min(centerX, centerY) - 50;
-
-        // 获取当前频率和入射方向下的数据点以计算RCS范围
-        List<RCSData> freqData = rcsDataList.stream()
-                .filter(data -> Math.abs(data.getFrequency() - currentFrequency) < 0.1)
-                .filter(data -> Math.abs(data.getIncidentDirection() - currentIncidentDirection) < 1.0)
-                .collect(Collectors.toList());
-
-        if (freqData.isEmpty()) {
-            return;
-        }
-
-        double minRCS = freqData.stream().mapToDouble(RCSData::getRcsValue).min().orElse(0.0);
-        double maxRCS = freqData.stream().mapToDouble(RCSData::getRcsValue).max().orElse(0.0);
-        double range = maxRCS - minRCS;
-
-        if (range == 0) {
-            range = 1;
-        }
-
-        double normalizedRCS = (currentRCS - minRCS) / range;
-        int r = (int) (radius * normalizedRCS);
-        double phi = Math.toRadians(currentAzimuth);
-        double theta = Math.toRadians(currentElevation);
-
-        // 转换极坐标到笛卡尔坐标
-        int x = centerX + (int) (r * Math.sin(phi));
-        int y = centerY - (int) (r * Math.cos(phi));
-
-        // 绘制当前点
-        g2d.setColor(Color.BLUE);
-        g2d.setStroke(new BasicStroke(3));
-        g2d.fillOval(x - 5, y - 5, 10, 10);
-        g2d.drawOval(x - 10, y - 10, 20, 20);
-
-        // 绘制坐标值
-        g2d.setColor(Color.BLACK);
-        g2d.setFont(new Font("Arial", Font.PLAIN, 12));
-        g2d.drawString(String.format("(%.1f, %.1f)", currentElevation, currentAzimuth), x + 15, y - 15);
-        g2d.drawString(String.format("RCS: %.2f dB(m²)", currentRCS), x + 15, y + 5);
-    }
-
-    private void drawLegend(Graphics2D g2d, double minRCS, double maxRCS) {
-        int legendX = getWidth() - 120;
-        int legendY = 50;
-        int legendWidth = 80;
-        int legendHeight = 200;
-
-        // 绘制图例背景
-        g2d.setColor(Color.WHITE);
-        g2d.fillRect(legendX, legendY, legendWidth, legendHeight);
-        g2d.setColor(Color.BLACK);
-        g2d.drawRect(legendX, legendY, legendWidth, legendHeight);
-
-        // 绘制颜色渐变
-        for (int y = 0; y < legendHeight; y++) {
-            double ratio = (double) y / legendHeight;
-            double rcsValue = maxRCS - (maxRCS - minRCS) * ratio;
-            Color color = getColorForRCS(rcsValue, minRCS, maxRCS);
-            g2d.setColor(color);
-            g2d.drawLine(legendX + 10, legendY + y, legendX + legendWidth - 10, legendY + y);
-        }
-
-        // 绘制数值标签
-        g2d.setColor(Color.BLACK);
-        g2d.setFont(new Font("Arial", Font.PLAIN, 10));
-        g2d.drawString(String.format("%.1f dB", maxRCS), legendX + legendWidth + 5, legendY + 15);
-        g2d.drawString(String.format("%.1f dB", (maxRCS + minRCS) / 2), legendX + legendWidth + 5, legendY + legendHeight / 2 + 5);
-        g2d.drawString(String.format("%.1f dB", minRCS), legendX + legendWidth + 5, legendY + legendHeight - 5);
-        g2d.drawString("RCS (dB)", legendX + 10, legendY - 10);
-    }
-
-    private Color getColorForRCS(double rcsValue, double minRCS, double maxRCS) {
-        double normalized = (rcsValue - minRCS) / (maxRCS - minRCS);
-        if (normalized < 0.2) {
-            return new Color(0, (int) (255 * normalized * 5), 255);
-        } else if (normalized < 0.4) {
-            return new Color(0, 255, (int) (255 - 255 * (normalized - 0.2) * 5));
-        } else if (normalized < 0.6) {
-            return new Color((int) (255 * (normalized - 0.4) * 5), 255, 0);
-        } else if (normalized < 0.8) {
-            return new Color(255, (int) (255 - 255 * (normalized - 0.6) * 5), 0);
-        } else {
-            return new Color(255, 0, 0);
-        }
+        // 绘制区域与控制面板分离，避免控件遮挡图形
+        drawingPanel = new RcsCanvas();
+        drawingPanel.setBackground(Color.WHITE);
+        add(drawingPanel, BorderLayout.CENTER);
     }
 
     @Override
@@ -293,18 +124,26 @@ public class VisualizationPanel extends JPanel implements ActionListener {
     private void calculateRCS() {
         try {
             currentFrequency = Double.parseDouble(frequencyField.getText());
-            currentIncidentDirection = Double.parseDouble(incidentDirectionField.getText());
-            currentElevation = Double.parseDouble(elevationField.getText());
-            currentAzimuth = Double.parseDouble(azimuthField.getText());
+            currentIncidentElevation = Double.parseDouble(incidentElevationField.getText());
+            currentIncidentAzimuth = Double.parseDouble(incidentAzimuthField.getText());
+            currentObservationElevation = Double.parseDouble(observationElevationField.getText());
+            currentObservationAzimuth = Double.parseDouble(observationAzimuthField.getText());
 
             // 使用插值引擎计算RCS值
-            currentRCS = interpolationEngine.calculateRCS(currentFrequency, currentIncidentDirection, currentElevation, currentAzimuth);
+            currentRCS = interpolationEngine.calculateRCS(
+                    currentFrequency,
+                    currentIncidentElevation,
+                    currentIncidentAzimuth,
+                    currentObservationElevation,
+                    currentObservationAzimuth
+            );
             hasCalculated = true;
 
             // 更新结果标签
             resultLabel.setText(String.format(
-                "频率: %.1f MHz, 入射方向: %.1f°, 俯仰角: %.1f°, 方位角: %.1f° → RCS: %.2f dB(m²)",
-                currentFrequency, currentIncidentDirection, currentElevation, currentAzimuth, currentRCS
+                "频率: %.1f MHz, 入射俯仰角/方位角: %.1f° / %.1f°, 观测俯仰角/方位角: %.1f° / %.1f° → RCS: %.2f dB(m²)",
+                currentFrequency, currentIncidentElevation, currentIncidentAzimuth,
+                currentObservationElevation, currentObservationAzimuth, currentRCS
             ));
 
             // 重绘面板
@@ -319,5 +158,198 @@ public class VisualizationPanel extends JPanel implements ActionListener {
     public void setRCSDataList(List<RCSData> rcsDataList) {
         this.rcsDataList = rcsDataList;
         repaint();
+    }
+
+    /**
+     * 单独的绘图面板，避免控件占用的空间挤压图形区域。
+     */
+    private class RcsCanvas extends JPanel {
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+
+            if (rcsDataList == null || rcsDataList.isEmpty()) {
+                g.drawString("没有可用的RCS数据", getWidth() / 2 - 50, getHeight() / 2);
+                return;
+            }
+
+            Graphics2D g2d = (Graphics2D) g;
+            g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+            drawRCSDirectionMap(g2d);
+            drawCurrentPoint(g2d);
+        }
+
+        private void drawRCSDirectionMap(Graphics2D g2d) {
+            int centerX = getWidth() / 2;
+            int centerY = getHeight() / 2;
+            int radius = Math.min(centerX, centerY) - 50;
+
+            // 绘制极坐标网格
+            g2d.setColor(Color.LIGHT_GRAY);
+            for (int i = 1; i <= 5; i++) {
+                int r = (int) (radius * i / 5.0);
+                g2d.drawOval(centerX - r, centerY - r, r * 2, r * 2);
+            }
+
+            // 绘制角度线
+            for (int i = 0; i < 8; i++) {
+                double angle = i * Math.PI / 4.0;
+                int x = centerX + (int) (radius * Math.cos(angle));
+                int y = centerY - (int) (radius * Math.sin(angle));
+                g2d.drawLine(centerX, centerY, x, y);
+                // 绘制角度标签
+                String label = String.valueOf((int) (i * 45));
+                int labelX = centerX + (int) ((radius + 15) * Math.cos(angle));
+                int labelY = centerY - (int) ((radius + 15) * Math.sin(angle));
+                g2d.drawString(label, labelX - 5, labelY + 5);
+            }
+
+            // 为了调试，暂时移除频率和入射方向的过滤条件，显示所有数据点
+            List<RCSData> freqData = rcsDataList.stream()
+                    // 暂时不过滤任何数据，显示所有点
+                    .collect(Collectors.toList());
+            System.out.println("绘制的点数量: " + freqData.size());
+
+            if (freqData.isEmpty()) {
+                g2d.setColor(Color.RED);
+                g2d.drawString("当前参数下无匹配数据", centerX - 80, centerY);
+                return;
+            }
+
+            // 计算RCS值的范围
+            double minRCS = freqData.stream().mapToDouble(RCSData::getRcsValue).min().orElse(-50.0);
+            double maxRCS = freqData.stream().mapToDouble(RCSData::getRcsValue).max().orElse(-10.0);
+            double range = maxRCS - minRCS;
+
+            if (range == 0) {
+                range = 1;
+            }
+
+            // 绘制RCS方向图
+            g2d.setStroke(new BasicStroke(2));
+            for (RCSData data : freqData) {
+                double phi = Math.toRadians(data.getPhi()); // 方位角
+                double theta = Math.toRadians(data.getTheta()); // 俯仰角
+                double rcsValue = data.getRcsValue();
+
+                // 计算归一化半径（将RCS值映射到[0, radius]）
+                double normalizedRCS = Math.max(0, Math.min(1, (rcsValue - minRCS) / range));
+                int r = (int) (radius * normalizedRCS);
+
+                // 转换极坐标到笛卡尔坐标（考虑俯仰角theta）
+                // 极径r, 方位角phi(绕y轴), 俯仰角theta(与y轴的夹角)
+                double xCartesian = r * Math.sin(theta) * Math.sin(phi);
+                double yCartesian = r * Math.cos(theta);
+
+                // 由于我们是在2D平面上显示，需要将3D坐标投影到2D平面
+                // 这里使用简化的2D极坐标显示，主要根据方位角phi
+                int x = centerX + (int) (r * Math.sin(phi));
+                int y = centerY - (int) (r * Math.cos(phi));
+
+                // 根据RCS值设置颜色
+                Color color = getColorForRCS(rcsValue, minRCS, maxRCS);
+                g2d.setColor(color);
+                g2d.fillOval(x - 3, y - 3, 6, 6);
+            }
+
+            // 绘制图例
+            drawLegend(g2d, minRCS, maxRCS);
+        }
+
+        private void drawCurrentPoint(Graphics2D g2d) {
+            if (!hasCalculated) {
+                return;
+            }
+
+            int centerX = getWidth() / 2;
+            int centerY = getHeight() / 2;
+            int radius = Math.min(centerX, centerY) - 50;
+
+            // 获取当前频率、入射俯仰和入射方位下的数据点以计算RCS范围
+            List<RCSData> freqData = rcsDataList.stream()
+                    .filter(data -> Math.abs(data.getFrequency() - currentFrequency) < 0.1)
+                    .filter(data -> Math.abs(data.getIncidentElevation() - currentIncidentElevation) < 1.0)
+                    .filter(data -> Math.abs(data.getIncidentAzimuth() - currentIncidentAzimuth) < 1.0)
+                    .collect(Collectors.toList());
+
+            if (freqData.isEmpty()) {
+                return;
+            }
+
+            double minRCS = freqData.stream().mapToDouble(RCSData::getRcsValue).min().orElse(0.0);
+            double maxRCS = freqData.stream().mapToDouble(RCSData::getRcsValue).max().orElse(0.0);
+            double range = maxRCS - minRCS;
+
+            if (range == 0) {
+                range = 1;
+            }
+
+            double normalizedRCS = (currentRCS - minRCS) / range;
+            int r = (int) (radius * normalizedRCS);
+            double phi = Math.toRadians(currentObservationAzimuth);
+            double theta = Math.toRadians(currentObservationElevation);
+
+            // 转换极坐标到笛卡尔坐标
+            int x = centerX + (int) (r * Math.sin(phi));
+            int y = centerY - (int) (r * Math.cos(phi));
+
+            // 绘制当前点
+            g2d.setColor(Color.BLUE);
+            g2d.setStroke(new BasicStroke(3));
+            g2d.fillOval(x - 5, y - 5, 10, 10);
+            g2d.drawOval(x - 10, y - 10, 20, 20);
+
+            // 绘制坐标值
+            g2d.setColor(Color.BLACK);
+            g2d.setFont(new Font("Arial", Font.PLAIN, 12));
+            g2d.drawString(String.format("(%.1f, %.1f)", currentObservationElevation, currentObservationAzimuth), x + 15, y - 15);
+            g2d.drawString(String.format("RCS: %.2f dB(m²)", currentRCS), x + 15, y + 5);
+        }
+
+        private void drawLegend(Graphics2D g2d, double minRCS, double maxRCS) {
+            int legendX = getWidth() - 120;
+            int legendY = 50;
+            int legendWidth = 80;
+            int legendHeight = 200;
+
+            // 绘制图例背景
+            g2d.setColor(Color.WHITE);
+            g2d.fillRect(legendX, legendY, legendWidth, legendHeight);
+            g2d.setColor(Color.BLACK);
+            g2d.drawRect(legendX, legendY, legendWidth, legendHeight);
+
+            // 绘制颜色渐变
+            for (int y = 0; y < legendHeight; y++) {
+                double ratio = (double) y / legendHeight;
+                double rcsValue = maxRCS - (maxRCS - minRCS) * ratio;
+                Color color = getColorForRCS(rcsValue, minRCS, maxRCS);
+                g2d.setColor(color);
+                g2d.drawLine(legendX + 10, legendY + y, legendX + legendWidth - 10, legendY + y);
+            }
+
+            // 绘制数值标签
+            g2d.setColor(Color.BLACK);
+            g2d.setFont(new Font("Arial", Font.PLAIN, 10));
+            g2d.drawString(String.format("%.1f dB", maxRCS), legendX + legendWidth + 5, legendY + 15);
+            g2d.drawString(String.format("%.1f dB", (maxRCS + minRCS) / 2), legendX + legendWidth + 5, legendY + legendHeight / 2 + 5);
+            g2d.drawString(String.format("%.1f dB", minRCS), legendX + legendWidth + 5, legendY + legendHeight - 5);
+            g2d.drawString("RCS (dB)", legendX + 10, legendY - 10);
+        }
+
+        private Color getColorForRCS(double rcsValue, double minRCS, double maxRCS) {
+            double normalized = (rcsValue - minRCS) / (maxRCS - minRCS);
+            if (normalized < 0.2) {
+                return new Color(0, (int) (255 * normalized * 5), 255);
+            } else if (normalized < 0.4) {
+                return new Color(0, 255, (int) (255 - 255 * (normalized - 0.2) * 5));
+            } else if (normalized < 0.6) {
+                return new Color((int) (255 * (normalized - 0.4) * 5), 255, 0);
+            } else if (normalized < 0.8) {
+                return new Color(255, (int) (255 - 255 * (normalized - 0.6) * 5), 0);
+            } else {
+                return new Color(255, 0, 0);
+            }
+        }
     }
 }
