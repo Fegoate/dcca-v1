@@ -59,6 +59,9 @@ public class DataReader {
     private List<RCSData> readFile(File file, double frequency, IncidentAngles incidentAngles) {
         List<RCSData> dataList = new ArrayList<>();
 
+        // 入射俯仰角在当前数据集中恒为0°，但仍作为独立参数存储，方便未来扩展
+        double incidentElevation = 0.0;
+
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {
             String line;
             int lineCount = 0;
