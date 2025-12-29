@@ -44,8 +44,11 @@ public class DataReader {
         return allData;
     }
 
-    private List<RCSData> readFile(File file, double frequency, double incidentDirection) {
+    private List<RCSData> readFile(File file, double frequency, double incidentAzimuth) {
         List<RCSData> dataList = new ArrayList<>();
+
+        // 入射俯仰角在当前数据集中恒为0°，但仍作为独立参数存储，方便未来扩展
+        double incidentElevation = 0.0;
 
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {
             String line;
@@ -71,7 +74,7 @@ public class DataReader {
                         double phi = Double.parseDouble(parts[1]);
                         double rcsValue = Double.parseDouble(parts[2]);
 
-                        RCSData data = new RCSData(frequency, incidentDirection, theta, phi, rcsValue);
+                        RCSData data = new RCSData(frequency, incidentElevation, incidentAzimuth, theta, phi, rcsValue);
                         dataList.add(data);
                     }
                 } catch (NumberFormatException e) {

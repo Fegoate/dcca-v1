@@ -8,7 +8,7 @@ public class InterpolationEngine {
         this.rcsDataList = rcsDataList;
     }
 
-    public double calculateRCS(double frequency, double incidentDirection, double theta, double phi) {
+    public double calculateRCS(double frequency, double incidentElevation, double incidentAzimuth, double theta, double phi) {
         // 找到最接近的频率点
         List<Double> frequencies = rcsDataList.stream()
                 .map(RCSData::getFrequency)
@@ -29,52 +29,81 @@ public class InterpolationEngine {
             }
         }
 
-        // 找到最接近的入射方向点
-        List<Double> incidentDirections = rcsDataList.stream()
-                .map(RCSData::getIncidentDirection)
+        // 找到最接近的入射俯仰角点
+        List<Double> incidentElevations = rcsDataList.stream()
+                .map(RCSData::getIncidentElevation)
                 .distinct()
                 .sorted()
                 .collect(Collectors.toList());
 
-        double closestDir1 = incidentDirections.get(0);
-        double closestDir2 = incidentDirections.get(0);
+        double closestElev1 = incidentElevations.get(0);
+        double closestElev2 = incidentElevations.get(0);
 
-        for (double d : incidentDirections) {
-            if (d <= incidentDirection) {
-                closestDir1 = d;
+        for (double e : incidentElevations) {
+            if (e <= incidentElevation) {
+                closestElev1 = e;
             }
-            if (d >= incidentDirection) {
-                closestDir2 = d;
+            if (e >= incidentElevation) {
+                closestElev2 = e;
                 break;
             }
         }
 
-        // 对四个角落点进行插值
+        // 找到最接近的入射方位角点
+        List<Double> incidentAzimuths = rcsDataList.stream()
+                .map(RCSData::getIncidentAzimuth)
+                .distinct()
+                .sorted()
+                .collect(Collectors.toList());
+
+        double closestAz1 = incidentAzimuths.get(0);
+        double closestAz2 = incidentAzimuths.get(0);
+
+        for (double a : incidentAzimuths) {
+            if (a <= incidentAzimuth) {
+                closestAz1 = a;
+            }
+            if (a >= incidentAzimuth) {
+                closestAz2 = a;
+                break;
+            }
+        }
+
+        // 三维线性插值（频率、入射俯仰、入射方位）
         double f1 = closestFreq1;
         double f2 = closestFreq2;
-        double d1 = closestDir1;
-        double d2 = closestDir2;
+        double e1 = closestElev1;
+        double e2 = closestElev2;
+        double a1 = closestAz1;
+        double a2 = closestAz2;
 
-        double rcs11 = getClosestRCS(f1, d1, theta, phi);
-        double rcs12 = getClosestRCS(f1, d2, theta, phi);
-        double rcs21 = getClosestRCS(f2, d1, theta, phi);
-        double rcs22 = getClosestRCS(f2, d2, theta, phi);
+        double rcs_f1_e1_a1 = getClosestRCS(f1, e1, a1, theta, phi);
+        double rcs_f1_e1_a2 = getClosestRCS(f1, e1, a2, theta, phi);
+        double rcs_f1_e2_a1 = getClosestRCS(f1, e2, a1, theta, phi);
+        double rcs_f1_e2_a2 = getClosestRCS(f1, e2, a2, theta, phi);
 
-        // 二维线性插值
-        double rcsFreq1 = interpolate(rcs11, rcs12, d1, d2, incidentDirection);
-        double rcsFreq2 = interpolate(rcs21, rcs22, d1, d2, incidentDirection);
-        double finalRCS = interpolate(rcsFreq1, rcsFreq2, f1, f2, frequency);
+        double rcs_f2_e1_a1 = getClosestRCS(f2, e1, a1, theta, phi);
+        double rcs_f2_e1_a2 = getClosestRCS(f2, e1, a2, theta, phi);
+        double rcs_f2_e2_a1 = getClosestRCS(f2, e2, a1, theta, phi);
+        double rcs_f2_e2_a2 = getClosestRCS(f2, e2, a2, theta, phi);
 
-        return finalRCS;
+        double rcsFreq1 = bilinear(rcs_f1_e1_a1, rcs_f1_e1_a2, rcs_f1_e2_a1, rcs_f1_e2_a2,
+                a1, a2, e1, e2, incidentAzimuth, incidentElevation);
+        double rcsFreq2 = bilinear(rcs_f2_e1_a1, rcs_f2_e1_a2, rcs_f2_e2_a1, rcs_f2_e2_a2,
+                a1, a2, e1, e2, incidentAzimuth, incidentElevation);
+
+        return interpolate(rcsFreq1, rcsFreq2, f1, f2, frequency);
     }
 
-    private double getClosestRCS(double frequency, double incidentDirection, double theta, double phi) {
+    private double getClosestRCS(double frequency, double incidentElevation, double incidentAzimuth, double theta, double phi) {
         // 找到最接近的theta和phi的数据点
         RCSData closestData = null;
         double minDistance = Double.MAX_VALUE;
 
         for (RCSData data : rcsDataList) {
-            if (Math.abs(data.getFrequency() - frequency) < 0.1 && Math.abs(data.getIncidentDirection() - incidentDirection) < 0.1) {
+            if (Math.abs(data.getFrequency() - frequency) < 0.1
+                    && Math.abs(data.getIncidentElevation() - incidentElevation) < 0.1
+                    && Math.abs(data.getIncidentAzimuth() - incidentAzimuth) < 0.1) {
                 double distance = Math.sqrt(
                         Math.pow(data.getTheta() - theta, 2) +
                         Math.pow(data.getPhi() - phi, 2)
@@ -101,5 +130,25 @@ public class InterpolationEngine {
         }
 
         return value1 + (value2 - value1) * (x - x1) / (x2 - x1);
+    }
+
+    private double bilinear(double q11, double q12, double q21, double q22,
+                            double x1, double x2, double y1, double y2,
+                            double x, double y) {
+        if (x1 == x2 && y1 == y2) {
+            return q11;
+        }
+
+        if (x1 == x2) {
+            return interpolate(q11, q21, y1, y2, y);
+        }
+
+        if (y1 == y2) {
+            return interpolate(q11, q12, x1, x2, x);
+        }
+
+        double r1 = interpolate(q11, q12, x1, x2, x);
+        double r2 = interpolate(q21, q22, x1, x2, x);
+        return interpolate(r1, r2, y1, y2, y);
     }
 }

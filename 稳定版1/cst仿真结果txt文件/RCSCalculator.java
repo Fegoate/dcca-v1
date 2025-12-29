@@ -29,15 +29,22 @@ public class RCSCalculator {
                         .sorted()
                         .toList();
 
-                List<Double> incidentDirections = rcsDataList.stream()
-                        .map(RCSData::getIncidentDirection)
+                List<Double> incidentElevations = rcsDataList.stream()
+                        .map(RCSData::getIncidentElevation)
+                        .distinct()
+                        .sorted()
+                        .toList();
+
+                List<Double> incidentAzimuths = rcsDataList.stream()
+                        .map(RCSData::getIncidentAzimuth)
                         .distinct()
                         .sorted()
                         .toList();
 
                 System.out.println("插值引擎初始化完成:");
                 System.out.println("- 频率点数量: " + frequencies.size());
-                System.out.println("- 入射方向数量: " + incidentDirections.size());
+                System.out.println("- 入射俯仰角数量: " + incidentElevations.size());
+                System.out.println("- 入射方位角数量: " + incidentAzimuths.size());
                 System.out.println("- 总数据点数量: " + rcsDataList.size());
 
                 // 创建可视化面板

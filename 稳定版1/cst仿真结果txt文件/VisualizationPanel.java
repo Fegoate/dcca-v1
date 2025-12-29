@@ -6,17 +6,19 @@ import java.util.stream.Collectors;
 
 public class VisualizationPanel extends JPanel implements ActionListener {
     private JTextField frequencyField;
-    private JTextField incidentDirectionField;
-    private JTextField elevationField;
-    private JTextField azimuthField;
+    private JTextField incidentElevationField;
+    private JTextField incidentAzimuthField;
+    private JTextField observationElevationField;
+    private JTextField observationAzimuthField;
     private JButton calculateButton;
     private JLabel resultLabel;
     private List<RCSData> rcsDataList;
     private InterpolationEngine interpolationEngine;
     private double currentFrequency = 10.0;
-    private double currentIncidentDirection = 0.0;
-    private double currentElevation = 0.0;
-    private double currentAzimuth = 0.0;
+    private double currentIncidentElevation = 0.0;
+    private double currentIncidentAzimuth = 0.0;
+    private double currentObservationElevation = 0.0;
+    private double currentObservationAzimuth = 0.0;
     private double currentRCS = 0.0;
     private boolean hasCalculated = false;
 
@@ -46,34 +48,44 @@ public class VisualizationPanel extends JPanel implements ActionListener {
         frequencyField = new JTextField("10.0", 10);
         controlPanel.add(frequencyField, gbc);
 
-        // 设置入射方向输入
+        // 设置入射俯仰角输入
         gbc.gridx = 2;
         gbc.anchor = GridBagConstraints.EAST;
-        controlPanel.add(new JLabel("入射方向 (度):"), gbc);
+        controlPanel.add(new JLabel("入射俯仰角 (度):"), gbc);
         gbc.gridx = 3;
         gbc.anchor = GridBagConstraints.WEST;
-        incidentDirectionField = new JTextField("0.0", 10);
-        controlPanel.add(incidentDirectionField, gbc);
+        incidentElevationField = new JTextField("0.0", 10);
+        controlPanel.add(incidentElevationField, gbc);
 
-        // 设置俯仰角输入
+        // 设置入射方位角输入
         gbc.gridx = 0;
         gbc.gridy = 1;
         gbc.anchor = GridBagConstraints.EAST;
-        controlPanel.add(new JLabel("俯仰角 (度):"), gbc);
+        controlPanel.add(new JLabel("入射方位角 (度):"), gbc);
         gbc.gridx = 1;
         gbc.anchor = GridBagConstraints.WEST;
-        elevationField = new JTextField("0.0", 10);
-        controlPanel.add(elevationField, gbc);
+        incidentAzimuthField = new JTextField("0.0", 10);
+        controlPanel.add(incidentAzimuthField, gbc);
 
-        // 设置方位角输入
+        // 设置观测俯仰角输入
         gbc.gridx = 2;
         gbc.gridy = 1;
         gbc.anchor = GridBagConstraints.EAST;
-        controlPanel.add(new JLabel("方位角 (度):"), gbc);
+        controlPanel.add(new JLabel("观测俯仰角 (度):"), gbc);
         gbc.gridx = 3;
         gbc.anchor = GridBagConstraints.WEST;
-        azimuthField = new JTextField("0.0", 10);
-        controlPanel.add(azimuthField, gbc);
+        observationElevationField = new JTextField("0.0", 10);
+        controlPanel.add(observationElevationField, gbc);
+
+        // 设置观测方位角输入
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        gbc.anchor = GridBagConstraints.EAST;
+        controlPanel.add(new JLabel("观测方位角 (度):"), gbc);
+        gbc.gridx = 1;
+        gbc.anchor = GridBagConstraints.WEST;
+        observationAzimuthField = new JTextField("0.0", 10);
+        controlPanel.add(observationAzimuthField, gbc);
 
         // 设置计算按钮
         gbc.gridx = 2;
@@ -198,10 +210,11 @@ public class VisualizationPanel extends JPanel implements ActionListener {
         int centerY = getHeight() / 2;
         int radius = Math.min(centerX, centerY) - 50;
 
-        // 获取当前频率和入射方向下的数据点以计算RCS范围
+        // 获取当前频率、入射俯仰和入射方位下的数据点以计算RCS范围
         List<RCSData> freqData = rcsDataList.stream()
                 .filter(data -> Math.abs(data.getFrequency() - currentFrequency) < 0.1)
-                .filter(data -> Math.abs(data.getIncidentDirection() - currentIncidentDirection) < 1.0)
+                .filter(data -> Math.abs(data.getIncidentElevation() - currentIncidentElevation) < 1.0)
+                .filter(data -> Math.abs(data.getIncidentAzimuth() - currentIncidentAzimuth) < 1.0)
                 .collect(Collectors.toList());
 
         if (freqData.isEmpty()) {
@@ -218,8 +231,8 @@ public class VisualizationPanel extends JPanel implements ActionListener {
 
         double normalizedRCS = (currentRCS - minRCS) / range;
         int r = (int) (radius * normalizedRCS);
-        double phi = Math.toRadians(currentAzimuth);
-        double theta = Math.toRadians(currentElevation);
+        double phi = Math.toRadians(currentObservationAzimuth);
+        double theta = Math.toRadians(currentObservationElevation);
 
         // 转换极坐标到笛卡尔坐标
         int x = centerX + (int) (r * Math.sin(phi));
@@ -234,7 +247,7 @@ public class VisualizationPanel extends JPanel implements ActionListener {
         // 绘制坐标值
         g2d.setColor(Color.BLACK);
         g2d.setFont(new Font("Arial", Font.PLAIN, 12));
-        g2d.drawString(String.format("(%.1f, %.1f)", currentElevation, currentAzimuth), x + 15, y - 15);
+        g2d.drawString(String.format("(%.1f, %.1f)", currentObservationElevation, currentObservationAzimuth), x + 15, y - 15);
         g2d.drawString(String.format("RCS: %.2f dB(m²)", currentRCS), x + 15, y + 5);
     }
 
@@ -293,18 +306,26 @@ public class VisualizationPanel extends JPanel implements ActionListener {
     private void calculateRCS() {
         try {
             currentFrequency = Double.parseDouble(frequencyField.getText());
-            currentIncidentDirection = Double.parseDouble(incidentDirectionField.getText());
-            currentElevation = Double.parseDouble(elevationField.getText());
-            currentAzimuth = Double.parseDouble(azimuthField.getText());
+            currentIncidentElevation = Double.parseDouble(incidentElevationField.getText());
+            currentIncidentAzimuth = Double.parseDouble(incidentAzimuthField.getText());
+            currentObservationElevation = Double.parseDouble(observationElevationField.getText());
+            currentObservationAzimuth = Double.parseDouble(observationAzimuthField.getText());
 
             // 使用插值引擎计算RCS值
-            currentRCS = interpolationEngine.calculateRCS(currentFrequency, currentIncidentDirection, currentElevation, currentAzimuth);
+            currentRCS = interpolationEngine.calculateRCS(
+                    currentFrequency,
+                    currentIncidentElevation,
+                    currentIncidentAzimuth,
+                    currentObservationElevation,
+                    currentObservationAzimuth
+            );
             hasCalculated = true;
 
             // 更新结果标签
             resultLabel.setText(String.format(
-                "频率: %.1f MHz, 入射方向: %.1f°, 俯仰角: %.1f°, 方位角: %.1f° → RCS: %.2f dB(m²)",
-                currentFrequency, currentIncidentDirection, currentElevation, currentAzimuth, currentRCS
+                "频率: %.1f MHz, 入射俯仰角/方位角: %.1f° / %.1f°, 观测俯仰角/方位角: %.1f° / %.1f° → RCS: %.2f dB(m²)",
+                currentFrequency, currentIncidentElevation, currentIncidentAzimuth,
+                currentObservationElevation, currentObservationAzimuth, currentRCS
             ));
 
             // 重绘面板
