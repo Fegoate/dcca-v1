@@ -90,8 +90,8 @@ public class DataReader {
                                 frequency,
                                 incidentAngles.elevation,
                                 incidentAngles.azimuth,
-                                theta,
-                                phi,
+                                AngleUtils.normalize360(theta),
+                                AngleUtils.normalize360(phi),
                                 rcsValue
                         );
                         dataList.add(data);
@@ -121,14 +121,13 @@ public class DataReader {
             double elevation = Math.toDegrees(Math.acos(z / r));
             double azimuth = Math.toDegrees(Math.atan2(y, x));
 
-            if (azimuth < 0) {
-                azimuth += 360.0;
-            }
-
-            return new IncidentAngles(elevation, azimuth);
+            return new IncidentAngles(
+                    AngleUtils.normalize360(elevation),
+                    AngleUtils.normalize360(azimuth)
+            );
         }
 
         // 其他方向暂无明确的传播矢量信息，沿用旧逻辑的占位角度
-        return new IncidentAngles(0.0, direction);
+        return new IncidentAngles(0.0, AngleUtils.normalize360(direction));
     }
 }

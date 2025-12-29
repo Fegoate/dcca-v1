@@ -124,10 +124,10 @@ public class VisualizationPanel extends JPanel implements ActionListener {
     private void calculateRCS() {
         try {
             currentFrequency = Double.parseDouble(frequencyField.getText());
-            currentIncidentElevation = Double.parseDouble(incidentElevationField.getText());
-            currentIncidentAzimuth = Double.parseDouble(incidentAzimuthField.getText());
-            currentObservationElevation = Double.parseDouble(observationElevationField.getText());
-            currentObservationAzimuth = Double.parseDouble(observationAzimuthField.getText());
+            currentIncidentElevation = AngleUtils.normalize360(Double.parseDouble(incidentElevationField.getText()));
+            currentIncidentAzimuth = AngleUtils.normalize360(Double.parseDouble(incidentAzimuthField.getText()));
+            currentObservationElevation = AngleUtils.normalize360(Double.parseDouble(observationElevationField.getText()));
+            currentObservationAzimuth = AngleUtils.normalize360(Double.parseDouble(observationAzimuthField.getText()));
 
             // 使用插值引擎计算RCS值
             currentRCS = interpolationEngine.calculateRCS(
@@ -269,8 +269,8 @@ public class VisualizationPanel extends JPanel implements ActionListener {
             // 获取当前频率、入射俯仰和入射方位下的数据点以计算RCS范围
             List<RCSData> freqData = rcsDataList.stream()
                     .filter(data -> Math.abs(data.getFrequency() - currentFrequency) < 0.1)
-                    .filter(data -> Math.abs(data.getIncidentElevation() - currentIncidentElevation) < 1.0)
-                    .filter(data -> Math.abs(data.getIncidentAzimuth() - currentIncidentAzimuth) < 1.0)
+                    .filter(data -> AngleUtils.circularDifference(data.getIncidentElevation(), currentIncidentElevation) < 1.0)
+                    .filter(data -> AngleUtils.circularDifference(data.getIncidentAzimuth(), currentIncidentAzimuth) < 1.0)
                     .collect(Collectors.toList());
 
             if (freqData.isEmpty()) {
@@ -287,8 +287,8 @@ public class VisualizationPanel extends JPanel implements ActionListener {
 
             double normalizedRCS = (currentRCS - minRCS) / range;
             int r = (int) (radius * normalizedRCS);
-            double phi = Math.toRadians(currentObservationAzimuth);
-            double theta = Math.toRadians(currentObservationElevation);
+            double phi = Math.toRadians(AngleUtils.normalize360(currentObservationAzimuth));
+            double theta = Math.toRadians(AngleUtils.normalize360(currentObservationElevation));
 
             // 转换极坐标到笛卡尔坐标
             int x = centerX + (int) (r * Math.sin(phi));
