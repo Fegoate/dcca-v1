@@ -8,6 +8,16 @@ import java.util.List;
 public class DataReader {
     private static final String DATA_DIRECTORY = "cst仿真结果txt文件";
 
+    private static class IncidentAngles {
+        final double elevation;
+        final double azimuth;
+
+        IncidentAngles(double elevation, double azimuth) {
+            this.elevation = elevation;
+            this.azimuth = azimuth;
+        }
+    }
+
     public List<RCSData> readAllData() {
         List<RCSData> allData = new ArrayList<>();
 
@@ -17,6 +27,8 @@ public class DataReader {
             File directionDir = new File(directionPath);
 
             if (directionDir.exists() && directionDir.isDirectory()) {
+                IncidentAngles incidentAngles = resolveIncidentAngles(direction);
+
                 System.out.println("检查文件夹: 方向" + direction);
                 File[] files = directionDir.listFiles((dir, name) -> name.endsWith(".txt"));
 
@@ -33,7 +45,7 @@ public class DataReader {
                         double frequency = Double.parseDouble(freqStr);
 
                         // 读取文件内容
-                        List<RCSData> fileData = readFile(file, frequency, direction);
+                        List<RCSData> fileData = readFile(file, frequency, incidentAngles);
                         allData.addAll(fileData);
                     }
                 }
@@ -44,7 +56,7 @@ public class DataReader {
         return allData;
     }
 
-    private List<RCSData> readFile(File file, double frequency, double incidentAzimuth) {
+    private List<RCSData> readFile(File file, double frequency, IncidentAngles incidentAngles) {
         List<RCSData> dataList = new ArrayList<>();
 
         // 入射俯仰角在当前数据集中恒为0°，但仍作为独立参数存储，方便未来扩展
@@ -74,7 +86,14 @@ public class DataReader {
                         double phi = Double.parseDouble(parts[1]);
                         double rcsValue = Double.parseDouble(parts[2]);
 
-                        RCSData data = new RCSData(frequency, incidentElevation, incidentAzimuth, theta, phi, rcsValue);
+                        RCSData data = new RCSData(
+                                frequency,
+                                incidentAngles.elevation,
+                                incidentAngles.azimuth,
+                                theta,
+                                phi,
+                                rcsValue
+                        );
                         dataList.add(data);
                     }
                 } catch (NumberFormatException e) {
@@ -89,5 +108,27 @@ public class DataReader {
         }
 
         return dataList;
+    }
+
+    private IncidentAngles resolveIncidentAngles(int direction) {
+        // 已知方向1的传播方向为 (0, -1, 0)，电场方向为 (0, 0, 1)
+        if (direction == 1) {
+            double x = 0.0;
+            double y = -1.0;
+            double z = 0.0;
+
+            double r = Math.sqrt(x * x + y * y + z * z);
+            double elevation = Math.toDegrees(Math.acos(z / r));
+            double azimuth = Math.toDegrees(Math.atan2(y, x));
+
+            if (azimuth < 0) {
+                azimuth += 360.0;
+            }
+
+            return new IncidentAngles(elevation, azimuth);
+        }
+
+        // 其他方向暂无明确的传播矢量信息，沿用旧逻辑的占位角度
+        return new IncidentAngles(0.0, direction);
     }
 }
