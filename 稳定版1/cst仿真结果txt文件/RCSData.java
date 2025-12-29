@@ -1,13 +1,15 @@
 public class RCSData {
     private double frequency;
-    private double incidentDirection;
+    private double incidentElevation;
+    private double incidentAzimuth;
     private double theta;
     private double phi;
     private double rcsValue;
 
-    public RCSData(double frequency, double incidentDirection, double theta, double phi, double rcsValue) {
+    public RCSData(double frequency, double incidentElevation, double incidentAzimuth, double theta, double phi, double rcsValue) {
         this.frequency = frequency;
-        this.incidentDirection = incidentDirection;
+        this.incidentElevation = incidentElevation;
+        this.incidentAzimuth = incidentAzimuth;
         this.theta = theta;
         this.phi = phi;
         this.rcsValue = rcsValue;
@@ -17,8 +19,12 @@ public class RCSData {
         return frequency;
     }
 
-    public double getIncidentDirection() {
-        return incidentDirection;
+    public double getIncidentElevation() {
+        return incidentElevation;
+    }
+
+    public double getIncidentAzimuth() {
+        return incidentAzimuth;
     }
 
     public double getTheta() {
@@ -35,7 +41,8 @@ public class RCSData {
 
     @Override
     public String toString() {
-        return String.format("RCSData{frequency=%.1f MHz, incidentDirection=%.1f°, theta=%.1f°, phi=%.1f°, rcsValue=%.2f dB(m²)}",
-                frequency, incidentDirection, theta, phi, rcsValue);
+        return String.format(
+                "RCSData{frequency=%.1f MHz, incidentElevation=%.1f°, incidentAzimuth=%.1f°, theta=%.1f°, phi=%.1f°, rcsValue=%.2f dB(m²)}",
+                frequency, incidentElevation, incidentAzimuth, theta, phi, rcsValue);
     }
 }
