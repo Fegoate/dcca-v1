@@ -111,23 +111,45 @@ public class DataReader {
     }
 
     private IncidentAngles resolveIncidentAngles(int direction) {
-        // 已知方向1的传播方向为 (0, -1, 0)，电场方向为 (0, 0, 1)
-        if (direction == 1) {
-            double x = 0.0;
-            double y = -1.0;
-            double z = 0.0;
-
-            double r = Math.sqrt(x * x + y * y + z * z);
-            double elevation = Math.toDegrees(Math.acos(z / r));
-            double azimuth = Math.toDegrees(Math.atan2(y, x));
-
-            return new IncidentAngles(
-                    AngleUtils.normalize360(elevation),
-                    AngleUtils.normalize360(azimuth)
-            );
+        switch (direction) {
+            case 1:
+                // 传播方向：(0, -1, 0)
+                return buildAnglesFromPropagation(0.0, -1.0, 0.0);
+            case 2:
+                // 传播方向：(0, 0, 1)
+                return buildAnglesFromPropagation(0.0, 0.0, 1.0);
+            case 3:
+                // 传播方向：(1, 0, 0)
+                return buildAnglesFromPropagation(1.0, 0.0, 0.0);
+            case 4:
+                // 传播方向：(0, 1, 0)
+                return buildAnglesFromPropagation(0.0, 1.0, 0.0);
+            case 5:
+                // 传播方向：(0, 0, -1)
+                return buildAnglesFromPropagation(0.0, 0.0, -1.0);
+            case 6:
+                // 传播方向：(-1, 0, 0)
+                return buildAnglesFromPropagation(-1.0, 0.0, 0.0);
+            case 7:
+                // 传播方向：(0.707, 0.707, 0)
+                return buildAnglesFromPropagation(0.707, 0.707, 0.0);
+            case 8:
+                // 传播方向：(0.707, 0, 0.707)
+                return buildAnglesFromPropagation(0.707, 0.0, 0.707);
+            default:
+                // 保底逻辑，避免意外方向导致角度为空
+                return new IncidentAngles(0.0, AngleUtils.normalize360(direction));
         }
+    }
 
-        // 其他方向暂无明确的传播矢量信息，沿用旧逻辑的占位角度
-        return new IncidentAngles(0.0, AngleUtils.normalize360(direction));
+    private IncidentAngles buildAnglesFromPropagation(double x, double y, double z) {
+        double r = Math.sqrt(x * x + y * y + z * z);
+        double elevation = Math.toDegrees(Math.acos(z / r));
+        double azimuth = Math.toDegrees(Math.atan2(y, x));
+
+        return new IncidentAngles(
+                AngleUtils.normalize360(elevation),
+                AngleUtils.normalize360(azimuth)
+        );
     }
 }
